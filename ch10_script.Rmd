@@ -23,35 +23,99 @@ library(tidyverse)
 
 **Prompt:** Create a bootstrap sample of a 1,000 replications of the mean income of the commuters, where each replication draws the appropriate number, with replacement, from the original data.
 
+```{r bootstrap}
+mean_income <- rep_sample_n(train, size = 115, reps = 1000, replace = TRUE) %>%
+  group_by(replicate) %>%
+  summarise(income_mean = mean(income))
+```
+
 # Scene 4
 
 **Prompt:** Using the bootstrap sample you create, calculate the 50% confidence interval (using the percentile method) of the true mean income of commuters. What is the meaning of this interval? What does it tell us about the world that we did not know before? Is that the same thing as thinking that there is a 50% chance that, if we were to draw a new commuter at random, that her income would fall within that range? Why or why not? What if, instead of looking at all commuters in the sample, we just looked at the Treated. That is easy to do with a single `filter()`. But would the interpretation of the confidence interval be the same or different?
+
+```{r confidence}
+mean_income <- mean_income %>%
+  pull(income_mean) %>%
+  quantile(c(0.25, 0.75))
+
+mean_income_treated <- rep_sample_n(train, size = 115, reps = 1000, replace = TRUE) %>%
+  filter(treatment == "Treated") %>%
+  group_by(replicate) %>%
+  summarise(income_mean = mean(income)) %>%
+  pull(income_mean) %>%
+  quantile(c(0.25, 0.75))
+  
+```
 
 
 # Scene 5
 
 **Prompt:**  Calculate  the difference between the income of treated and control commuters in our sample. We need to subtract the Control average from the Treated average. To do that, having them on the same row is convenient. Recall the `pivot_*` functions. `everything()` is also a cool trick for organizing the order of the variables in a tibble. I like to put the key variable, which would be the income difference in this case, first.
 
+```{r difference}
+difference_income <- train %>%
+  group_by(treatment) %>%
+  summarise(avg_income = mean(income)) %>%
+  pivot_wider(names_from = treatment, values_from = avg_income) %>%
+  summarise(difference = Control - Treated)
+```
+
+
 # Scene 7
 
 **Prompt:**  Calculate a 95% confidence interval for the difference between the mean income of treated and control commuters in our sample. Provide a Bayesian and Frequentist interpretation of this interval.
+
+```{r more_confidence}
+
+treated_minus_control <- rep_sample_n(train, 115, reps = 1000, replace = TRUE) %>%
+  group_by(replicate, treatment) %>%
+  summarise(mean = mean(income)) %>%
+  pivot_wider(names_from = treatment, values_from = mean) %>%
+  summarise(diff_income = Control - Treated) %>%
+  pull(diff_income) %>%
+  quantile(c(0.025, 0.975))
+```
 
 
 # Scene 8
 
 **Prompt:**  What about the difference between att_chg of the treated and the controls? Calculate the mean difference, just as we did with income. Is this difference "large?" 
 
+```{r diff_att_chg}
+mean_change <- train %>%
+  group_by(treatment) %>%
+  summarise(avg_att_chg = mean(att_chg)) %>%
+  pivot_wider(names_from = treatment, values_from = avg_att_chg) %>%
+  summarise(diff_avg_att = Control - Treated)
+```
 
 
 # Scene 9
 
 **Prompt:** What is the 99% confidence interval for that difference? 
 
+```{r conf_att_chg}
+treat_control_att_change <- rep_sample_n(train, 115, reps = 1000, replace = TRUE) %>%
+  group_by(replicate, treatment) %>%
+  summarise(avg_att = mean(att_chg)) %>%
+  pivot_wider(names_from = treatment, values_from = avg_att) %>%
+  summarise(diff_att_chg = Control - Treated) %>%
+  pull(diff_att_chg) %>%
+  quantile(c(0.005, 0.995))
+```
+
 
 
 # Scene 10
 
 **Prompt:** Use `lm()` to calculate the difference between att_chg of the treated and the controls? 
+
+```{r}
+linear_change <- train %>%
+  group_by(treatment) %>%
+  summarise(avg_att_chg = mean(att_chg)) %>%
+  pivot_wider(names_from = treatment, values_from = avg_att_chg)
+```
 
 
 # Scene 11
